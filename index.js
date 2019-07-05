@@ -250,13 +250,14 @@ var getCloudImage = function(cloudProfile, response) {
 
 function updateCloudImage(cloudImage, callback) {
   var host = program.server.replace(/https?:\/\//, '')
-  var path = cloudImage.href + "/projectFeatures/type:CloudImage,property(name:image-name-prefix,value:" + program.agentprefix + ")/properties/amazon-id"
+  var path = '/app/rest/projects/id:_Root/projectFeatures/type:CloudImage,property(name:image-name-prefix,value:' + program.agentprefix + ')/properties/amazon-id'
   var req = http.request({
     host: host,
     path: path,
     method: 'PUT',
     headers: {
       'Authorization': auth,
+      'Content-type': 'text/plain',
       'Origin': program.server
     }
   }, function(response) {
