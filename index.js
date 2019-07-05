@@ -6,8 +6,7 @@ var http = require('https');
 
 program
   .version('1.0.0')
-  .option('--username <string>', 'The valid TeamCity username')
-  .option('--password <string>', 'Password for the TeamCity user')
+  .option('--token <string>', 'A valid TeamCity user access token (requires TC 2019.1)')
   .option('--server <string>', 'The url of the TeamCity server, eg "http://teamcity.example.com"')
   .option('--image <string>', 'The AMI id (for AWS), or full url to the VHD (for Azure)')
   .option('--cloudprofile <string>', 'The name of the TeamCity Cloud Profile to modify')
@@ -18,19 +17,18 @@ var fail = function(message) {
   console.log(colors.red("ERROR: " + message));
   process.exit(1);
 };
-if (!program.username || program.username == "") fail('Option "username" was not supplied.')
-if (!program.password || program.password == "") fail('Option "password" was not supplied.')
+if (!program.token || program.token == "") fail('Option "token" was not supplied.')
 if (!program.server || program.server == "") fail('Option "server" was not supplied.')
 if (!program.image || program.image == "") fail('Option "image" was not supplied.')
 if (!program.cloudprofile || program.cloudprofile == "") fail('Option "cloudprofile" was not supplied.')
 if (!program.agentprefix || program.agentprefix == "") fail('Option "agentprefix" was not supplied.')
 
-var auth = "Basic " + Buffer.from(program.username + ":" + program.password).toString("base64");
+var auth = "Bearer " + program.token;
 
 function getAuthorisedAgents(callback) {
   http.get({
     host: program.server.replace(/https?:\/\//, ''),
-    path: '/httpAuth/app/rest/agents?locator=authorized:true',
+    path: '/app/rest/agents?locator=authorized:true',
     headers: {
       'accept': 'application/json',
       "Authorization" : auth
@@ -169,7 +167,7 @@ function disableOldAgents(oldImage) {
 var getRootProjectFeatures = function(callback) {
   http.get({
     host: program.server.replace(/https?:\/\//, ''),
-    path: '/httpAuth/app/rest/projects/id:_Root/projectFeatures',
+    path: '/app/rest/projects/id:_Root/projectFeatures',
     headers: {
       'accept': 'application/json',
       "Authorization" : auth
@@ -250,21 +248,21 @@ var getCloudImage = function(cloudProfile, response) {
 }
 
 function updateCloudImage(cloudImage, callback) {
+  var host = program.server.replace(/https?:\/\//, '')
+  var path = cloudImage.href + "/projectFeatures/type:CloudImage,property(name:image-name-prefix,value:" + program.agentprefix + ")/properties/amazon-id"
   var req = http.request({
-    host: program.server.replace(/https?:\/\//, ''),
-    path: cloudImage.href,
+    host: host,
+    path: path,
     method: 'PUT',
     headers: {
-      'accept': 'application/json',
-      'Authorization': auth,
-      'content-type': 'application/json'
+      'Authorization': auth
     }
   }, function(response) {
       if (('' + response.statusCode).match(/^2\d\d$/)) {
           console.log(colors.gray("VERBOSE: Server returned status code " + response.statusCode));
       } else {
           console.log(colors.red("ERROR: Server returned non-2xx status code " + response.statusCode + ". Exiting with exit code 8."));
-          process.exit(8);
+          //process.exit(8);
       }
       var body = '';
       response.on('data', function(d) {
@@ -289,7 +287,7 @@ function updateCloudImage(cloudImage, callback) {
     process.exit(10);
   });
 
-  req.write(JSON.stringify(cloudImage));
+  req.write(program.image);
 
   req.end();
 }
