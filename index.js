@@ -74,7 +74,8 @@ function disableAgent(agent, image) {
     method: 'PUT',
     headers: {
       'content-type': 'application/xml',
-      "Authorization" : auth
+      'Authorization' : auth,
+      'Origin': program.server
     },
     agent: false
   }, function(response) {
@@ -255,21 +256,22 @@ function updateCloudImage(cloudImage, callback) {
     path: path,
     method: 'PUT',
     headers: {
-      'Authorization': auth
+      'Authorization': auth,
+      'Origin': program.server
     }
   }, function(response) {
       if (('' + response.statusCode).match(/^2\d\d$/)) {
           console.log(colors.gray("VERBOSE: Server returned status code " + response.statusCode));
+          console.log(colors.cyan("INFO: Successfully updated cloudImage " + cloudImage.id + " in teamcity."));
       } else {
           console.log(colors.red("ERROR: Server returned non-2xx status code " + response.statusCode + ". Exiting with exit code 8."));
-          //process.exit(8);
+          process.exit(8);
       }
       var body = '';
       response.on('data', function(d) {
           body += d;
       });
       response.on('end', function() {
-        console.log(colors.cyan("INFO: Successfully updated cloudImage " + cloudImage.id + " in teamcity."));
         console.log(colors.gray("VERBOSE" + body));
         callback();
       });
