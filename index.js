@@ -3,32 +3,11 @@
 var program = require('commander');
 var colors = require('colors/safe');
 var http = require('https');
+const { fail } = require('assert');
 
-program
-  .version('1.0.0')
-  .option('--token <string>', 'A valid TeamCity user access token (requires TC 2019.1)')
-  .option('--server <string>', 'The url of the TeamCity server, eg "http://teamcity.example.com"')
-  .option('--image <string>', 'The AMI id (for AWS), or full url to the VHD / resource id of the managed image (for Azure)')
-  .option('--cloudprofile <string>', 'The name of the TeamCity Cloud Profile to modify')
-  .option('--agentprefix <string>', 'The agent prefix used in the Cloud Profile image that should be updated')
-  .parse(process.argv);
-
-var fail = function(message) {
-  console.log(colors.red("ERROR: " + message));
-  process.exit(1);
-};
-const options = program.opts();
-if (!options.token || options.token == "") fail('Option "token" was not supplied.')
-if (!options.server || options.server == "") fail('Option "server" was not supplied.')
-if (!options.image || options.image == "") fail('Option "image" was not supplied.')
-if (!options.cloudprofile || options.cloudprofile == "") fail('Option "cloudprofile" was not supplied.')
-if (!options.agentprefix || options.agentprefix == "") fail('Option "agentprefix" was not supplied.')
-
-var auth = "Bearer " + options.token;
-
-function getAuthorisedAgents(callback) {
+function getAuthorisedAgents(server, auth, callback) {
   http.get({
-    host: options.server.replace(/https?:\/\//, ''),
+    host: server.replace(/https?:\/\//, ''),
     path: '/app/rest/agents?locator=authorized:true',
     headers: {
       'accept': 'application/json',
@@ -47,9 +26,9 @@ function getAuthorisedAgents(callback) {
   }).end();
 }
 
-function getAgentDetails(href, callback) {
+function getAgentDetails(server, auth, href, callback) {
   http.get({
-    host: options.server.replace(/https?:\/\//, ''),
+    host: server.replace(/https?:\/\//, ''),
     path: href,
     headers: {
       'accept': 'application/json',
@@ -78,15 +57,21 @@ function shortenImage(image) {
   return splitImage[splitImage.length - 1]
 }
 
-function disableAgent(agent, oldImage, newImage) {
+function disableAgent(server, agent, oldImage, newImage, dryrun) {
+
+  if (dryrun) {
+    console.log(colors.cyan("INFO: Would have disabled agent " + agent.id + " from teamcity."));
+    return;
+  }
+
   var req = http.request({
-    host: options.server.replace(/https?:\/\//, ''),
+    host: server.replace(/https?:\/\//, ''),
     path: agent.href + "/enabledInfo",
     method: 'PUT',
     headers: {
       'content-type': 'application/xml',
       'Authorization' : auth,
-      'Origin': options.server
+      'Origin': server
     },
     agent: false
   }, function(response) {
@@ -149,12 +134,12 @@ function checkAgentMatches(agent, image, success, failure) {
     }
 }
 
-function disableAgentWith(agents, oldImage, newImage) {
+function disableAgentWith(server, auth, agents, oldImage, newImage, dryrun) {
   var failureCount = 0;
   agents.forEach(function(agent) {
-      getAgentDetails(agent.href, function(agentDetails) {
+      getAgentDetails(server, auth, agent.href, function(agentDetails) {
         var success = function(agent) {
-            disableAgent(agent, oldImage, newImage);
+            disableAgent(agent, oldImage, newImage, dryrun);
         };
         var failure = function () {
           failureCount++;
@@ -168,17 +153,17 @@ function disableAgentWith(agents, oldImage, newImage) {
     })
 }
 
-function disableOldAgents(oldImage, newImage) {
+function disableOldAgents(server, auth, oldImage, newImage, dryrun) {
   console.log(colors.cyan("INFO: Attempting to disable teamcity agents that use image " + oldImage));
-  getAuthorisedAgents(function(response) {
+  getAuthorisedAgents(server, auth, function(response) {
     var agents = response.agent;
-    disableAgentWith(agents, oldImage, newImage);
+    disableAgentWith(server, auth, agents, oldImage, newImage, dryrun);
   });
 }
 
-var getRootProjectFeatures = function(callback) {
+var getRootProjectFeatures = function(server, auth, callback) {
   http.get({
-    host: options.server.replace(/https?:\/\//, ''),
+    host: server.replace(/https?:\/\//, ''),
     path: '/app/rest/projects/id:_Root/projectFeatures',
     headers: {
       'accept': 'application/json',
@@ -224,23 +209,23 @@ function setFeatureProperty(feature, propertyName, newValue) {
   });
 }
 
-var getCloudProfile = function(response) {
+var getCloudProfile = function(response, cloudProfileName) {
   var features = response.projectFeature;
   var returnFeature;
   features.forEach(function(feature) {
     if (feature.type === 'CloudProfile') {
-      if (getFeatureProperty(feature, 'name') == options.cloudprofile) {
+      if (getFeatureProperty(feature, 'name') == cloudProfileName) {
         returnFeature = feature;
       }
     }
   });
   if (returnFeature)
     return returnFeature;
-  console.log(colors.red("ERROR: Unable to find Cloud Profile '" + options.cloudprofile + "'. Exiting with code 6."));
+  console.log(colors.red("ERROR: Unable to find Cloud Profile '" + cloudProfileName + "'. Exiting with code 6."));
   process.exit(6);
 }
 
-var getCloudImage = function(cloudProfile, response) {
+var getCloudImage = function(cloudProfile, agentPrefix, response) {
   var cloudProfileId = cloudProfile.id;
   var features = response.projectFeature;
   var returnFeature;
@@ -248,7 +233,7 @@ var getCloudImage = function(cloudProfile, response) {
   features.forEach(function(feature) {
     if (feature.type === 'CloudImage') {
       if (getFeatureProperty(feature, 'profileId') === cloudProfileId) {
-        if (getFeatureProperty(feature, agentPrefixProperty) === options.agentprefix) {
+        if (getFeatureProperty(feature, agentPrefixProperty) === agentPrefix) {
           returnFeature = feature;
         }
       }
@@ -256,16 +241,24 @@ var getCloudImage = function(cloudProfile, response) {
   });
   if (returnFeature)
     return returnFeature;
-  console.log(colors.red("ERROR: Unable to find Cloud Image with profileid '" + cloudProfileId + "' and " + agentPrefixProperty + " '" + options.agentprefix + "'.  Exiting with code 7."));
+  console.log(colors.red("ERROR: Unable to find Cloud Image with profileid '" + cloudProfileId + "' and " + agentPrefixProperty + " '" + agentPrefix + "'.  Exiting with code 7."));
   process.exit(7);
 }
 
-function updateCloudImage(cloudProfile, cloudImage, newImage, callback) {
-  var host = options.server.replace(/https?:\/\//, '')
+function updateCloudImageOnTeamCity(server, auth, cloudProfile, cloudImage, currentImage, newImage, cloudProfileName, agentPrefix, dryrun, callback) {
+  if (dryrun) {
+    console.log(colors.cyan("INFO: TeamCity cloud profile '" + cloudProfileName + "', image '" + agentPrefix + "' is currently set to use '" + currentImage + "'. Would update to use '" + newImage + "'."));
+    callback();
+    return;
+  } else {
+    console.log(colors.cyan("INFO: TeamCity cloud profile '" + cloudProfileName + "', image '" + agentPrefix + "' is currently set to use '" + currentImage + "'. Updating to use '" + newImage + "'."));
+  }
+
+  var host = server.replace(/https?:\/\//, '')
   var cloudCode = getFeatureProperty(cloudProfile, 'cloud-code')
   var agentPrefixProperty = cloudCode === 'amazon' ? 'image-name-prefix' : 'source-id';
   var imageProperty = cloudCode === 'amazon' ? 'amazon-id' : 'imageId';
-  var path = '/app/rest/projects/id:_Root/projectFeatures/type:CloudImage,property(name:' + agentPrefixProperty + ',value:' + options.agentprefix + ')/properties/' + imageProperty;
+  var path = '/app/rest/projects/id:_Root/projectFeatures/type:CloudImage,property(name:' + agentPrefixProperty + ',value:' + agentPrefix + ')/properties/' + imageProperty;
   var req = http.request({
     host: host,
     path: path,
@@ -273,7 +266,7 @@ function updateCloudImage(cloudProfile, cloudImage, newImage, callback) {
     headers: {
       'Authorization': auth,
       'Content-type': 'text/plain',
-      'Origin': options.server
+      'Origin': server
     }
   }, function(response) {
       if (('' + response.statusCode).match(/^2\d\d$/)) {
@@ -319,20 +312,136 @@ var tweakImageName = function(cloudProfile, cloudImage, newImage) {
   return newImage.replace(groupId, groupId.toUpperCase())
 }
 
-getRootProjectFeatures(function (features) {
-  var cloudProfile = getCloudProfile(features);
-  var cloudImage = getCloudImage(cloudProfile, features);
-  var imageProperty = getFeatureProperty(cloudProfile, 'cloud-code') === 'amazon' ? 'amazon-id' : 'imageId';
+var updateCloudImage = function(server, auth, cloudProfileName, agentPrefix, image, dryrun) {
+  getRootProjectFeatures(server, auth, function (features) {
+    var cloudProfile = getCloudProfile(features, cloudProfileName);
+    var cloudImage = getCloudImage(cloudProfile, agentPrefix, features);
+    var imageProperty = getFeatureProperty(cloudProfile, 'cloud-code') === 'amazon' ? 'amazon-id' : 'imageId';
 
-  var currentImage = getFeatureProperty(cloudImage, imageProperty);
-  var newImage = tweakImageName(cloudProfile, cloudImage, options.image);
-  if (currentImage == newImage) {
-    console.log(colors.cyan("INFO: TeamCity cloud profile '" + options.cloudprofile + "', image '" + options.agentprefix + "' is already set to use '" + newImage + "'"));
-  } else {
-    console.log(colors.cyan("INFO: TeamCity cloud profile '" + options.cloudprofile + "', image '" + options.agentprefix + "' is currently set to use '" + currentImage + "'. Updating to use '" + newImage + "'."));
-    setFeatureProperty(cloudImage, imageProperty, newImage);
-    updateCloudImage(cloudProfile, cloudImage, newImage, function() {
-      disableOldAgents(currentImage, newImage);
-    });
+    var currentImage = getFeatureProperty(cloudImage, imageProperty);
+    var newImage = tweakImageName(cloudProfile, cloudImage, image);
+    if (currentImage == newImage) {
+      console.log(colors.cyan("INFO: TeamCity cloud profile '" + cloudProfileName + "', image '" + agentPrefix + "' is already set to use '" + newImage + "'"));
+    } else {
+        setFeatureProperty(cloudImage, imageProperty, newImage);
+        updateCloudImageOnTeamCity(server, auth, cloudProfile, cloudImage, currentImage, newImage, cloudProfileName, agentPrefix, dryrun, function() {
+          disableOldAgents(server, auth, currentImage, newImage);
+        });
+    }
+  });
+}
+
+function removeAgent(server, auth, agent, dryrun) {
+
+  if (dryrun) {
+    console.log(colors.cyan("INFO: Would have removed agent " + agent.id + " from teamcity."));
+    return;
   }
-});
+
+  var req = http.request({
+    host: server.replace(/https?:\/\//, ''),
+    path: "/app/rest/ui/cloud/instances/id:(" + agent.cloudInstance.id + ")",
+    method: 'DELETE',
+    headers: {
+      'content-type': 'application/xml',
+      'Authorization' : auth,
+      'Origin': server
+    },
+    agent: false
+  }, function(response) {
+      if (('' + response.statusCode).match(/^2\d\d$/)) {
+          console.log(colors.gray("VERBOSE: Server returned status code " + response.statusCode));
+      } else {
+          console.log(colors.red("ERROR: Server returned non-2xx status code " + response.statusCode + ". Exiting with exit code 11."));
+          process.exit(11);
+      }
+      var body = '';
+      response.on('data', function(d) {
+          body += d;
+      });
+      response.on('end', function() {
+        console.log(colors.cyan("INFO: Successfully deleted agent " + agent.id + " from teamcity."));
+        console.log(colors.gray("VERBOSE: " + body));
+      });
+  });
+
+  req.on('error', function (e) {
+    console.log(colors.red("ERROR: " + e));
+    console.log(colors.red("ERROR: Got error when deleting agent. Exiting with exit code 12."));
+    process.exit(12);
+  });
+
+  req.on('timeout', function () {
+    console.log(colors.red("ERROR: timeout"));
+    req.abort();
+  });
+
+  req.end();
+}
+
+function removeAgentIfSuperseded(server, auth, agents, dryrun) {
+  var failureCount = 0;
+  agents.forEach(function(agent) {
+      getAgentDetails(server, auth, agent.href + "?fields=id,name,href,build(id),enabled,enabledInfo(comment),cloudInstance", function(agentDetails) {
+        var success = function(agent) {
+          removeAgent(server, auth, agent, dryrun);
+        };
+        var failure = function () {
+          failureCount++;
+          if (failureCount == agents.length) {
+            console.log(colors.cyan("INFO: No disabled, superseded agents found. Nothing to cleanup."));
+          }
+        };
+
+        if (
+          agentDetails.hasOwnProperty("enabled") && !agentDetails.enabled && 
+          /Disabling agent as it uses base image .*, which has been superseded by base image .*\./.test(agentDetails.enabledInfo.comment.text)) {
+          console.log(colors.cyan("INFO: Agent " + agentDetails.name + " uses old image and should be cleaned up (it had comment '" + agentDetails.enabledInfo.comment.text + "')"));
+          if (agentDetails.hasOwnProperty("build")) {
+            console.log(colors.cyan("INFO: Agent " + agentDetails.name + " is still running a build (" + agent.build.id + "), skipping cleanup this time round."));
+            failure(agentDetails);
+          } else {
+            success(agentDetails);
+          }
+        }
+        else {
+          failure(agentDetails);
+        }
+      })
+    })
+}
+
+var removeDisabledAgents = function(server, auth, dryrun) {
+  console.log("removing disabled agents")
+
+  console.log(colors.cyan("INFO: Attempting to remove old disabled teamcity agents that have been replaced by newwer images"));
+  getAuthorisedAgents(server, auth, function(response) {
+    var agents = response.agent;
+    removeAgentIfSuperseded(server, auth, agents, dryrun);
+  });
+
+}
+
+program
+  .name('TeamCity Cloud Agent Updater')
+  .description('Simple NodeJS app to update images for TeamCity Cloud Agents, via the 2017.1 API.')
+  .version('1.0.0');
+
+program
+  .command('update-cloud-profile', { isDefault: true })
+  .requiredOption('--token <string>', 'A valid TeamCity user access token (requires TC 2019.1)')
+  .requiredOption('--server <string>', 'The url of the TeamCity server, eg "http://teamcity.example.com"')
+  .requiredOption('--image <string>', 'The AMI id (for AWS), or full url to the VHD / resource id of the managed image (for Azure)')
+  .requiredOption('--cloudprofile <string>', 'The name of the TeamCity Cloud Profile to modify')
+  .requiredOption('--agentprefix <string>', 'The agent prefix used in the Cloud Profile image that should be updated')
+  .option('--dryrun', 'Output what changes the app would make, but dont actually make the changes')
+  .action((options) => updateCloudImage(options.server, "Bearer " + options.token, options.cloudprofile, options.agentprefix, options.image, options.dryrun));
+
+program
+  .command('remove-disabled-agents')
+  .requiredOption('--token <string>', 'A valid TeamCity user access token (requires TC 2019.1)')
+  .requiredOption('--server <string>', 'The url of the TeamCity server, eg "http://teamcity.example.com"')
+  .option('--dryrun', 'Output what changes the app would make, but dont actually make the changes')
+  .action((options) => removeDisabledAgents(options.server, "Bearer " + options.token, options.dryrun));
+
+program.parse(process.argv);
