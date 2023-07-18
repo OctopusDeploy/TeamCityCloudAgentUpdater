@@ -57,7 +57,7 @@ function shortenImage(image) {
   return splitImage[splitImage.length - 1]
 }
 
-function disableAgent(server, agent, oldImage, newImage, dryrun) {
+function disableAgent(server, auth, agent, oldImage, newImage, dryrun) {
 
   if (dryrun) {
     console.log(colors.cyan("INFO: Would have disabled agent " + agent.id + " from teamcity."));
@@ -139,7 +139,7 @@ function disableAgentWith(server, auth, agents, oldImage, newImage, dryrun) {
   agents.forEach(function(agent) {
       getAgentDetails(server, auth, agent.href, function(agentDetails) {
         var success = function(agent) {
-            disableAgent(agent, oldImage, newImage, dryrun);
+            disableAgent(server, auth, agent, oldImage, newImage, dryrun);
         };
         var failure = function () {
           failureCount++;
