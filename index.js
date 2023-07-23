@@ -412,9 +412,7 @@ function removeAgentIfSuperseded(server, auth, agents, dryrun) {
 }
 
 var removeDisabledAgents = function(server, auth, dryrun) {
-  console.log("removing disabled agents")
-
-  console.log(colors.cyan("INFO: Attempting to remove old disabled teamcity agents that have been replaced by newwer images"));
+  console.log(colors.cyan("INFO: Attempting to remove old disabled teamcity agents that have been replaced by newer images"));
   getAuthorisedAgents(server, auth, function(response) {
     var agents = response.agent;
     removeAgentIfSuperseded(server, auth, agents, dryrun);
