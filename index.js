@@ -398,7 +398,7 @@ function removeAgentIfSuperseded(server, auth, agents, dryrun) {
           /Disabling agent as it uses base image .*, which has been superseded by base image .*\./.test(agentDetails.enabledInfo.comment.text)) {
           console.log(colors.cyan("INFO: Agent " + agentDetails.name + " uses old image and should be cleaned up (it had comment '" + agentDetails.enabledInfo.comment.text + "')"));
           if (agentDetails.hasOwnProperty("build")) {
-            console.log(colors.cyan("INFO: Agent " + agentDetails.name + " is still running a build (" + agent.build.id + "), skipping cleanup this time round."));
+            console.log(colors.cyan("INFO: Agent " + agentDetails.name + " is still running a build (" + agentDetails.build.id + "), skipping cleanup this time round."));
             failure(agentDetails);
           } else {
             success(agentDetails);
