@@ -1,14 +1,14 @@
 # TeamCityCloudAgentUpdater
 
-When building a new teamcity agent image (e.g., via [packer](packer.io)), once it's built, you need to tell TeamCity to start using it.
+When a new TeamCity agent image is built (e.g., via [packer](packer.io)), you need to tell TeamCity to start using it. 
 
 This is a simple NodeJS app that can:
-1. updates TeamCity Cloud Agents images and disable any agents that are running that are based on the old image
+1. update TeamCity Cloud Agents images and disable any agents that are running that are based on the old image
 2. remove any agents that were disabled during update that are no longer running a build
 
 ## Usage
 
-To update a cloud profile (whenever you have a new agent):
+When you have a new agent, update the cloud profile:
 ```
 node index.js [update-cloud-image] --token XXXXX --server https://teamcity.example.com --image ami-XXXXXXX --cloudprofile "AWS Agents" --agentprefix "Ubuntu" [--dryrun]
 ```
