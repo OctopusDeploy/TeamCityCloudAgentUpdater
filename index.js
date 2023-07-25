@@ -398,7 +398,7 @@ function removeAgentIfSuperseded(server, auth, agents, dryrun) {
           /Disabling agent as it uses base image .*, which has been superseded by base image .*\./.test(agentDetails.enabledInfo.comment.text)) {
           console.log(colors.cyan("INFO: Agent " + agentDetails.name + " uses old image and should be cleaned up (it had comment '" + agentDetails.enabledInfo.comment.text + "')"));
           if (agentDetails.hasOwnProperty("build")) {
-            console.log(colors.cyan("INFO: Agent " + agentDetails.name + " is still running a build (" + agent.build.id + "), skipping cleanup this time round."));
+            console.log(colors.cyan("INFO: Agent " + agentDetails.name + " is still running a build (" + agentDetails.build.id + "), skipping cleanup this time round."));
             failure(agentDetails);
           } else {
             success(agentDetails);
@@ -412,9 +412,7 @@ function removeAgentIfSuperseded(server, auth, agents, dryrun) {
 }
 
 var removeDisabledAgents = function(server, auth, dryrun) {
-  console.log("removing disabled agents")
-
-  console.log(colors.cyan("INFO: Attempting to remove old disabled teamcity agents that have been replaced by newwer images"));
+  console.log(colors.cyan("INFO: Attempting to remove old disabled teamcity agents that have been replaced by newer images"));
   getAuthorisedAgents(server, auth, function(response) {
     var agents = response.agent;
     removeAgentIfSuperseded(server, auth, agents, dryrun);
