@@ -127,7 +127,7 @@ function checkAgentMatches(agent, image, cloudProfileId, success, failure) {
       console.log(colors.cyan("INFO: Disabling agent " + agent.id + " as it uses old image " + reportedImageId));
       success(agent);
     } else if (cloudProfileId == agentCloudProfileId) {
-      console.log(colors.cyan("INFO: Disabling agent " + agent.id + " as it uses old image " + cloudProfileId));
+      console.log(colors.cyan("INFO: Disabling agent " + agent.id + " as it uses cloud profile " + cloudProfileId));
       success(agent);
     } else {
       failure(agent);
