@@ -320,7 +320,7 @@ var updateCloudImage = function(server, auth, cloudProfileName, agentPrefix, ima
 
     var currentImage = getFeatureProperty(cloudImage, imageProperty);
     var newImage = tweakImageName(cloudProfile, cloudImage, image);
-    if (false) { //currentImage == newImage) { //nocommit
+    if (currentImage == newImage) {
       console.log(colors.cyan("INFO: TeamCity cloud profile '" + cloudProfileName + "', image '" + agentPrefix + "' is already set to use '" + newImage + "'"));
     } else {
         setFeatureProperty(cloudImage, imageProperty, newImage);
