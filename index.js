@@ -117,24 +117,24 @@ function getAgentProperty(agent, propertyName) {
   return result;
 }
 
-function checkAgentMatches(agent, image, success, failure) {
+function checkAgentMatches(agent, image, cloudProfileId, success, failure) {
     if (agent.properties) {
-      var propertyName;
-      propertyName = 'system.ec2.ami-id'; //todo: needs fixing to work for azure as well
-
-      var reportedImageId = getAgentProperty(agent, propertyName);
+      var reportedImageId = getAgentProperty(agent, 'system.ec2.ami-id');
+      var agentCloudProfileId = getAgentProperty(agent, 'system.cloud.profile_id')
     }
 
-    if ((reportedImageId == image)) {
+    if (reportedImageId == image) {
       console.log(colors.cyan("INFO: Disabling agent " + agent.id + " as it uses old image " + reportedImageId));
       success(agent);
-    }
-    else {
+    } else if (cloudProfileId == agentCloudProfileId) {
+      console.log(colors.cyan("INFO: Disabling agent " + agent.id + " as it uses old image " + cloudProfileId));
+      success(agent);
+    } else {
       failure(agent);
     }
 }
 
-function disableAgentWith(server, auth, agents, oldImage, newImage, dryrun) {
+function disableAgentWith(server, auth, agents, oldImage, newImage, dryrun, cloudProfileId) {
   var failureCount = 0;
   agents.forEach(function(agent) {
       getAgentDetails(server, auth, agent.href, function(agentDetails) {
@@ -148,16 +148,16 @@ function disableAgentWith(server, auth, agents, oldImage, newImage, dryrun) {
           }
         };
 
-        checkAgentMatches(agentDetails, oldImage, success, failure);
+        checkAgentMatches(agentDetails, oldImage, cloudProfileId, success, failure);
       })
     })
 }
 
-function disableOldAgents(server, auth, oldImage, newImage, dryrun) {
-  console.log(colors.cyan("INFO: Attempting to disable teamcity agents that use image " + oldImage));
+function disableOldAgents(server, auth, oldImage, newImage, dryrun, cloudProfileId) {
+  console.log(colors.cyan("INFO: Attempting to disable teamcity agents that use image " + oldImage + ", cloud profile id " + cloudProfileId));
   getAuthorisedAgents(server, auth, function(response) {
     var agents = response.agent;
-    disableAgentWith(server, auth, agents, oldImage, newImage, dryrun);
+    disableAgentWith(server, auth, agents, oldImage, newImage, dryrun, cloudProfileId);
   });
 }
 
@@ -282,7 +282,7 @@ function updateCloudImageOnTeamCity(server, auth, cloudProfile, cloudImage, curr
       });
       response.on('end', function() {
         console.log(colors.gray("VERBOSE: " + body));
-        callback();
+        callback(cloudProfile.id);
       });
   });
 
@@ -320,12 +320,12 @@ var updateCloudImage = function(server, auth, cloudProfileName, agentPrefix, ima
 
     var currentImage = getFeatureProperty(cloudImage, imageProperty);
     var newImage = tweakImageName(cloudProfile, cloudImage, image);
-    if (currentImage == newImage) {
+    if (false) { //currentImage == newImage) { //nocommit
       console.log(colors.cyan("INFO: TeamCity cloud profile '" + cloudProfileName + "', image '" + agentPrefix + "' is already set to use '" + newImage + "'"));
     } else {
         setFeatureProperty(cloudImage, imageProperty, newImage);
-        updateCloudImageOnTeamCity(server, auth, cloudProfile, cloudImage, currentImage, newImage, cloudProfileName, agentPrefix, dryrun, function() {
-          disableOldAgents(server, auth, currentImage, newImage);
+        updateCloudImageOnTeamCity(server, auth, cloudProfile, cloudImage, currentImage, newImage, cloudProfileName, agentPrefix, dryrun, function(cloudProfileId) {
+          disableOldAgents(server, auth, currentImage, newImage, dryrun, cloudProfileId);
         });
     }
   });
