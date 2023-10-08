@@ -121,13 +121,14 @@ function checkAgentMatches(agent, image, cloudProfileId, success, failure) {
     if (agent.properties) {
       var reportedImageId = getAgentProperty(agent, 'system.ec2.ami-id');
       var agentCloudProfileId = getAgentProperty(agent, 'system.cloud.profile_id')
+      var agentProvenanceName = getAgentProperty(agent, 'system.Octopus.Provenance.Name')
     }
 
     if (reportedImageId == image) {
       console.log(colors.cyan("INFO: Disabling agent " + agent.id + " as it uses old image " + reportedImageId));
       success(agent);
-    } else if (cloudProfileId == agentCloudProfileId) {
-      console.log(colors.cyan("INFO: Disabling agent " + agent.id + " as it uses cloud profile " + cloudProfileId));
+    } else if (cloudProfileId == agentCloudProfileId && image.endsWith(agentProvenanceName)) {
+      console.log(colors.cyan("INFO: Disabling agent " + agent.id + " as it uses cloud profile " + cloudProfileId + " and has Octopus.Provenance.Name set to '" + agentProvenanceName + "'."));
       success(agent);
     } else {
       failure(agent);
