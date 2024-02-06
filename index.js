@@ -1,6 +1,8 @@
 'use strict';
 
-var program = require('commander');
+const { Command } = require('commander');
+const program = new Command();
+
 var colors = require('colors/safe');
 var http = require('https');
 const { fail } = require('assert');
@@ -249,7 +251,7 @@ var getCloudImage = function(cloudProfile, agentPrefix, response) {
 function updateCloudImageOnTeamCity(server, auth, cloudProfile, cloudImage, currentImage, newImage, cloudProfileName, agentPrefix, dryrun, callback) {
   if (dryrun) {
     console.log(colors.cyan("INFO: TeamCity cloud profile '" + cloudProfileName + "', image '" + agentPrefix + "' is currently set to use '" + currentImage + "'. Would update to use '" + newImage + "'."));
-    callback();
+    callback(cloudProfile.id);
     return;
   } else {
     console.log(colors.cyan("INFO: TeamCity cloud profile '" + cloudProfileName + "', image '" + agentPrefix + "' is currently set to use '" + currentImage + "'. Updating to use '" + newImage + "'."));
