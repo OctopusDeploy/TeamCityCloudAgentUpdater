@@ -39,9 +39,6 @@ function Publish-ToGitHub($versionNumber, $commitId, $preRelease, $artifact, $gi
     Invoke-RestMethod @params
 }
 
-Write-output "### Running npm install"
-npm install
-
 Write-output "### Enabling TLS 1.2 support"
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12, [System.Net.SecurityProtocolType]::Tls11, [System.Net.SecurityProtocolType]::Tls
 
