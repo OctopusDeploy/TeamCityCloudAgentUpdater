@@ -13,7 +13,8 @@ function getAuthorisedAgents(server, auth, callback) {
     path: '/app/rest/agents?locator=authorized:true',
     headers: {
       'accept': 'application/json',
-      "Authorization" : auth
+      "Authorization" : auth,
+      'user-agent': 'TeamCityCloudAgentUpdater/1.0'
     },
     agent: false
   }, function(response) {
@@ -34,7 +35,8 @@ function getAgentDetails(server, auth, href, callback) {
     path: href,
     headers: {
       'accept': 'application/json',
-      "Authorization" : auth
+      "Authorization" : auth,
+      'user-agent': 'TeamCityCloudAgentUpdater/1.0'
     },
     agent: false
   }, function(response) {
@@ -73,7 +75,8 @@ function disableAgent(server, auth, agent, oldImage, newImage, dryrun) {
     headers: {
       'content-type': 'application/xml',
       'Authorization' : auth,
-      'Origin': server
+      'Origin': server,
+      'user-agent': 'TeamCityCloudAgentUpdater/1.0'
     },
     agent: false
   }, function(response) {
@@ -170,7 +173,8 @@ var getRootProjectFeatures = function(server, auth, callback) {
     path: '/app/rest/projects/id:_Root/projectFeatures',
     headers: {
       'accept': 'application/json',
-      "Authorization" : auth
+      "Authorization" : auth,
+      'user-agent': 'TeamCityCloudAgentUpdater/1.0'
     }
   }, function(response) {
       if (('' + response.statusCode).match(/^2\d\d$/)) {
@@ -269,7 +273,8 @@ function updateCloudImageOnTeamCity(server, auth, cloudProfile, cloudImage, curr
     headers: {
       'Authorization': auth,
       'Content-type': 'text/plain',
-      'Origin': server
+      'Origin': server,
+      'user-agent': 'TeamCityCloudAgentUpdater/1.0'
     }
   }, function(response) {
       if (('' + response.statusCode).match(/^2\d\d$/)) {
@@ -348,7 +353,8 @@ function removeAgent(server, auth, agent, dryrun) {
     headers: {
       'content-type': 'application/xml',
       'Authorization' : auth,
-      'Origin': server
+      'Origin': server,
+      'user-agent': 'TeamCityCloudAgentUpdater/1.0'
     },
     agent: false
   }, function(response) {
