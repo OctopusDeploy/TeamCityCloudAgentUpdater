@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "Updates image references in TeamCity Cloud Agents",
   "main": "index.js",
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=11.0.0"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
