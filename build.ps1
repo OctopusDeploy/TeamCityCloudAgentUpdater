@@ -54,7 +54,7 @@ docker run --rm `
     -v "${PWD}:${workDir}" `
     -w $workDir `
     $nodeImage `
-    sh -c "npm clean-install"
+    sh -c "npm install -g npm@latest && npm clean-install"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "npm clean-install failed with exit code $LASTEXITCODE"
@@ -79,7 +79,7 @@ if ($env:TEAMCITY_VERSION) {
         -w $workDir `
         -e TEAMCITY_VERSION=$env:TEAMCITY_VERSION `
         $nodeImage `
-        sh -c "npx jest --reporters=jest-teamcity-reporter --coverage"
+        sh -c "npm install -g npm@latest && npx jest --verbose --coverage --ci"
 
     $testExitCode = $LASTEXITCODE
 
