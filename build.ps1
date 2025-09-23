@@ -66,20 +66,13 @@ Write-output "### Running tests in Docker"
 if ($env:TEAMCITY_VERSION) {
     Write-output "##teamcity[testSuiteStarted name='Jest Tests']"
 
-    # First install jest-teamcity-reporter if needed
-    docker run --rm `
-        -v "${PWD}:${workDir}" `
-        -w $workDir `
-        $nodeImage `
-        sh -c "if [ ! -d 'node_modules/jest-teamcity-reporter' ]; then npm install --save-dev jest-teamcity-reporter; fi"
-
-    # Run tests with TeamCity reporter and coverage
+    # Run tests with coverage (reporter auto-selected by jest.config.js)
     docker run --rm `
         -v "${PWD}:${workDir}" `
         -w $workDir `
         -e TEAMCITY_VERSION=$env:TEAMCITY_VERSION `
         $nodeImage `
-        sh -c "npm install -g npm@latest && npx jest --verbose --coverage --ci"
+        sh -c "npm install -g npm@latest && npx jest --coverage --ci"
 
     $testExitCode = $LASTEXITCODE
 
