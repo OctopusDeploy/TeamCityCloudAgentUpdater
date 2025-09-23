@@ -42,28 +42,45 @@ function Publish-ToGitHub($versionNumber, $commitId, $preRelease, $artifact, $gi
 Write-output "### Enabling TLS 1.2 support"
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12, [System.Net.SecurityProtocolType]::Tls11, [System.Net.SecurityProtocolType]::Tls
 
-Write-output "### Installing dependencies"
-# npm clean-install (ci) is faster and more reliable for CI environments
-# It requires package-lock.json and installs exactly what's in the lock file
-npm clean-install
+Write-output "### Running npm operations in Docker container"
+
+# Use Node 22 Alpine image (smaller and matches package.json requirement)
+$nodeImage = "node:22-alpine"
+$workDir = "/app"
+
+# Mount current directory to container and run npm/test commands
+Write-output "### Installing dependencies in Docker"
+docker run --rm `
+    -v "${PWD}:${workDir}" `
+    -w $workDir `
+    $nodeImage `
+    sh -c "npm clean-install"
+
 if ($LASTEXITCODE -ne 0) {
     Write-Error "npm clean-install failed with exit code $LASTEXITCODE"
     exit $LASTEXITCODE
 }
 
-Write-output "### Running tests"
+Write-output "### Running tests in Docker"
 # Run tests with Jest's TeamCity reporter if in TeamCity, otherwise use default reporter
 if ($env:TEAMCITY_VERSION) {
     Write-output "##teamcity[testSuiteStarted name='Jest Tests']"
 
-    # Install jest-teamcity-reporter if not already installed
-    if (!(Test-Path "node_modules/jest-teamcity-reporter")) {
-        Write-output "### Installing jest-teamcity-reporter"
-        npm install --save-dev jest-teamcity-reporter
-    }
+    # First install jest-teamcity-reporter if needed
+    docker run --rm `
+        -v "${PWD}:${workDir}" `
+        -w $workDir `
+        $nodeImage `
+        sh -c "if [ ! -d 'node_modules/jest-teamcity-reporter' ]; then npm install --save-dev jest-teamcity-reporter; fi"
 
-    # Run tests with TeamCity reporter
-    npx jest --reporters=jest-teamcity-reporter --coverage
+    # Run tests with TeamCity reporter and coverage
+    docker run --rm `
+        -v "${PWD}:${workDir}" `
+        -w $workDir `
+        -e TEAMCITY_VERSION=$env:TEAMCITY_VERSION `
+        $nodeImage `
+        sh -c "npx jest --reporters=jest-teamcity-reporter --coverage"
+
     $testExitCode = $LASTEXITCODE
 
     # Report coverage to TeamCity if available
@@ -107,7 +124,12 @@ if ($env:TEAMCITY_VERSION) {
     }
 } else {
     # Run tests normally when not in TeamCity
-    npm test
+    docker run --rm `
+        -v "${PWD}:${workDir}" `
+        -w $workDir `
+        $nodeImage `
+        sh -c "npm test"
+
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Tests failed with exit code $LASTEXITCODE"
         exit $LASTEXITCODE
