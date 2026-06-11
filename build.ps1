@@ -72,7 +72,7 @@ if ($env:TEAMCITY_VERSION) {
         -w $workDir `
         -e TEAMCITY_VERSION=$env:TEAMCITY_VERSION `
         $nodeImage `
-        sh -c "npx jest --coverage --ci"
+        sh -c "NODE_OPTIONS=--experimental-vm-modules npx jest --coverage --ci"
 
     $testExitCode = $LASTEXITCODE
 

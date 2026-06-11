@@ -1,6 +1,8 @@
-const { spawn } = require('child_process');
-const path = require('path');
-const cli = require('./cli');
+import { spawn } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe('CLI Commands', () => {
   const indexPath = path.join(__dirname, 'index.js');
