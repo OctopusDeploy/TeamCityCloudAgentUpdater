@@ -1,7 +1,5 @@
-'use strict';
-
-const { Command } = require('commander');
-const lib = require('./lib/index');
+import { Command } from 'commander';
+import * as lib from './lib/index.js';
 
 function createProgram() {
   const program = new Command();
@@ -36,7 +34,7 @@ function run(argv) {
   return program.parse(argv);
 }
 
-module.exports = {
+export {
   createProgram,
   run
 };

@@ -1,5 +1,6 @@
-module.exports = {
+export default {
   testEnvironment: 'node',
+  coverageProvider: 'v8',
   coverageDirectory: 'coverage',
   collectCoverageFrom: [
     '*.js',

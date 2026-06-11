@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 
-'use strict';
-
-const cli = require('./cli');
+import * as cli from './cli.js';
 
 // Run the CLI with process arguments
 cli.run(process.argv);
