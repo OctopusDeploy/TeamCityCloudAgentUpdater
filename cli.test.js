@@ -59,6 +59,35 @@ describe('CLI Commands', () => {
     });
   });
 
+  describe('create-cloud-image command', () => {
+    it('should show error when required options are missing', async () => {
+      const result = await runCommand(['create-cloud-image']);
+      expect(result.code).not.toBe(0);
+      expect(result.stderr).toContain('required option');
+    });
+
+    it('should show help with --help flag', async () => {
+      const result = await runCommand(['create-cloud-image', '--help']);
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('--token');
+      expect(result.stdout).toContain('--server');
+      expect(result.stdout).toContain('--image');
+      expect(result.stdout).toContain('--cloudprofile');
+      expect(result.stdout).toContain('--templateagentprefix');
+      expect(result.stdout).toContain('--newagentprefix');
+      expect(result.stdout).toContain('--dryrun');
+    });
+
+    it('should validate required parameters', async () => {
+      const result = await runCommand([
+        'create-cloud-image',
+        '--token', 'test-token'
+      ]);
+      expect(result.code).not.toBe(0);
+      expect(result.stderr).toContain('required option');
+    });
+  });
+
   describe('remove-disabled-agents command', () => {
     it('should show error when required options are missing', async () => {
       const result = await runCommand(['remove-disabled-agents']);
@@ -96,6 +125,7 @@ describe('CLI Commands', () => {
       expect(result.code).toBe(0);
       expect(result.stdout).toContain('TeamCity Cloud Agent Updater');
       expect(result.stdout).toContain('update-cloud-profile');
+      expect(result.stdout).toContain('create-cloud-image');
       expect(result.stdout).toContain('remove-disabled-agents');
     });
 
