@@ -20,6 +20,17 @@ function createProgram() {
     .action((options) => lib.updateCloudImage(options.server, "Bearer " + options.token, options.cloudprofile, options.agentprefix, options.image, options.dryrun));
 
   program
+    .command('create-cloud-image')
+    .requiredOption('--token <string>', 'A valid TeamCity user access token (requires TC 2019.1)')
+    .requiredOption('--server <string>', 'The url of the TeamCity server, eg "http://teamcity.example.com"')
+    .requiredOption('--image <string>', 'The AMI id (for AWS), or full url to the VHD / resource id of the managed image (for Azure)')
+    .requiredOption('--cloudprofile <string>', 'The name of the TeamCity Cloud Profile to modify')
+    .requiredOption('--templateagentprefix <string>', 'The agent prefix of an existing Cloud Image in this profile to clone as a template')
+    .requiredOption('--newagentprefix <string>', 'The agent prefix to give the newly created Cloud Image')
+    .option('--dryrun', 'Output what changes the app would make, but dont actually make the changes')
+    .action((options) => lib.createCloudImage(options.server, "Bearer " + options.token, options.cloudprofile, options.templateagentprefix, options.newagentprefix, options.image, options.dryrun));
+
+  program
     .command('remove-disabled-agents')
     .requiredOption('--token <string>', 'A valid TeamCity user access token (requires TC 2019.1)')
     .requiredOption('--server <string>', 'The url of the TeamCity server, eg "http://teamcity.example.com"')
